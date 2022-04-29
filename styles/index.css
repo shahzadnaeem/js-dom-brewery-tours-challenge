@@ -228,3 +228,8 @@ article {
   text-decoration: none;
   font-weight: bold;
 }
+
+.no-state-selected {
+  color: orangered;
+  font-size: x-large;
+}
