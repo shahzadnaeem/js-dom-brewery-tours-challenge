@@ -112,6 +112,29 @@ main {
   border-top: none;
 }
 
+.status-section {
+  margin-top: 1rem;
+  background-color: aliceblue;
+}
+
+.status-section div {
+  padding: 1rem;
+  border-radius: 0 0 0.25rem 0.25rem;
+  border: 1px solid #000;
+}
+
+.status-error {
+  background-color: orangered;
+}
+
+.status-done {
+  background-color: lightgreen;
+}
+
+.status-no-data {
+  background-color: lightpink;
+}
+
 h1 {
   grid-area: title;
 

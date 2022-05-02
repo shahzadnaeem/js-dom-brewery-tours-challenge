@@ -1,80 +1,105 @@
-
 // ========================================================
 
 // Config and State
 
-const tourBreweryTypes = [ "micro", "brewpub", "regional" ]
+const tourBreweryTypes = ["micro", "brewpub", "regional"];
+
+const INITIALISING = "INITIALISING...";
+const IDLE = "IDLE";
+const FETCHING = "FETCHING...";
+const DONE = "DONE";
+const NO_DATA = "NO_DATA";
+const FETCH_ERROR = "FETCH_ERROR";
 
 const state = {
-    state: "",
-    breweriesHeadingEl: "",
-    breweriesListEl: "",
-    breweriesData: [],
-    filters: {
-        breweryType: ""
-    },
-    status: "Idle"
-}
+  state: "",
+  breweriesHeadingEl: "",
+  breweriesListEl: "",
+  breweriesData: [],
+  breweryCities: {},
+  filters: {
+    breweryType: "",
+    cities: [],
+  },
+  status: "",
+  statusSpanEl: "",
+};
 
 // ========================================================
 
 // Initialise - State and Listeners
 
 function initialiseSearchListener() {
-    const searchButton = document.querySelector('#select-state-form')
+  const searchButton = document.querySelector("#select-state-form");
 
-    searchButton.addEventListener('submit', (ev) => {
-        ev.preventDefault()
+  searchButton.addEventListener("submit", (ev) => {
+    ev.preventDefault();
 
-        state.state = ev.target[0].value
-        // ev.target.reset()
+    state.state = ev.target[0].value;
+    // ev.target.reset()
 
-        fetchAndRender()
-    })
+    fetchAndRender();
+  });
 }
 
 function initialiseFilterByTypeListener() {
-    const filter = document.querySelector('#filter-by-type');
+  const filter = document.querySelector("#filter-by-type");
 
-    filter.addEventListener('change', (ev) => {
+  filter.addEventListener("change", (ev) => {
+    state.filters.breweryType = ev.target.value;
 
-        state.filters.breweryType = ev.target.value
-
-        fetchAndRender()
-    })
+    fetchAndRender();
+  });
 }
 
 // Initialises the app - state and listeners
 function initialise() {
+  state.breweriesHeadingEl = document.querySelector("#breweries-heading");
+  state.breweriesListEl = document.querySelector("#breweries-list");
+  state.statusDivEl = document.querySelector("#status");
 
-    state.breweriesHeadingEl = document.querySelector('#breweries-heading')
-    state.breweriesListEl    = document.querySelector('#breweries-list')
+  setStatus(INITIALISING);
 
-    initialiseSearchListener()
-    initialiseFilterByTypeListener()
+  initialiseSearchListener();
+  initialiseFilterByTypeListener();
 
-    fetchAndRender()
+  fetchAndRender();
 }
 
 // ========================================================
 
 // Render
 
+function renderStatus() {
+  state.statusDivEl.innerText = state.status;
+
+  if (state.status.toLocaleLowerCase().includes("error")) {
+    state.statusDivEl.className = "status-error";
+  } else {
+    if (state.status === NO_DATA) {
+      state.statusDivEl.className = "status-no-data";
+    } else if (state.status.includes(DONE)) {
+      state.statusDivEl.className = "status-done";
+    } else {
+      state.statusDivEl.className = "";
+    }
+  }
+}
+
 function renderBreweries() {
-    state.breweriesData.forEach(brewery => renderBrewery(brewery))
+  state.breweriesData.forEach((brewery) => renderBrewery(brewery));
 }
 
 function renderPhoneNumber(phoneNumber) {
-    if (phoneNumber === null) {
-      return "N/A"
-    }
-    return phoneNumber
+  if (phoneNumber === null) {
+    return "N/A";
   }
-  
-function renderBrewery(brewery) {
+  return phoneNumber;
+}
 
-    const li = document.createElement('li')
-    li.innerHTML = `<h2>${brewery.name}</h2>
+function renderBrewery(brewery) {
+  const li = document.createElement("li");
+  li.innerHTML = `<h2>${brewery.name}</h2>
     <div class="type">${brewery.brewery_type}</div>
     <section class="address">
       <h3>Address:</h3>
@@ -87,13 +112,64 @@ function renderBrewery(brewery) {
     </section>
     <section class="link">
       <a href="${brewery.website_url}" target="_blank">Visit Website</a>
-    </section>`
+    </section>`;
 
-    state.breweriesListEl.appendChild(li)
+  state.breweriesListEl.appendChild(li);
 }
 
 function render() {
-    renderBreweries()
+  renderStatus();
+  renderBreweries();
+
+  if (state.breweriesData.length === 0) {
+    setStatus(NO_DATA);
+  } else {
+    setStatus(DONE);
+  }
+}
+
+// ========================================================
+
+function setStatus(status) {
+  if (typeof status !== "string") {
+    state.status = FETCH_ERROR + `  ${status.message}`;
+  } else {
+    const numBreweries = state.breweriesData.length;
+
+    let statusString = status;
+
+    if (numBreweries) {
+      statusString += `  [${numBreweries} breweries, ${state.breweryCities.length} cities]`;
+    }
+
+    state.status = statusString;
+  }
+
+  renderStatus();
+}
+
+function setBreweryCities() {
+  state.breweryCities = {};
+
+  state.breweriesData.forEach((b) => {
+    state.breweryCities[b.city] = true;
+  });
+
+  state.breweryCities = Object.keys(state.breweryCities).sort();
+
+  console.log(state.breweryCities);
+}
+
+function setBreweryData(rawData) {
+  let breweriesWithTours = [];
+
+  breweriesWithTours = rawData.filter((b) =>
+    tourBreweryTypes.includes(b.brewery_type)
+  );
+
+  state.breweriesData = breweriesWithTours;
+
+  setBreweryCities();
 }
 
 // ========================================================
@@ -101,63 +177,68 @@ function render() {
 // Fetch
 
 function getUrl() {
-    let url = `https://api.openbrewerydb.org/breweries?by_state=${state.state}`
+  let url = `https://api.openbrewerydb.org/breweries?by_state=${state.state}`;
 
-    if ( state.filters.breweryType !== "") {
-        url = url + `&by_type=${state.filters.breweryType}`
-    }
+  if (state.filters.breweryType !== "") {
+    url = url + `&by_type=${state.filters.breweryType}`;
+  }
 
-    return url
-}
-
-function setBreweryData(rawData) {
-    let breweriesWithTours = []
-
-    breweriesWithTours = rawData.filter( (b) => tourBreweryTypes.includes( b.brewery_type ) ) 
-
-    state.breweriesData = breweriesWithTours
+  return url;
 }
 
 function getBreweriesHeading() {
-    let breweriesHeading = "List of Breweries"
+  let breweriesHeading = "List of Breweries";
 
-    if ( state.state !== "" ) {
-        breweriesHeading = breweriesHeading + ` for '${state.state}'`
-    }
+  if (state.state !== "") {
+    breweriesHeading = breweriesHeading + ` for '${state.state}'`;
+  }
 
-    if ( state.filters.breweryType !== "" ) {
-        breweriesHeading = breweriesHeading + ` [type='${state.filters.breweryType}']`
-    }
+  if (state.filters.breweryType !== "") {
+    breweriesHeading =
+      breweriesHeading + ` [type='${state.filters.breweryType}']`;
+  }
 
-    return breweriesHeading
+  return breweriesHeading;
 }
 
 function fetchAndRender() {
+  state.breweriesListEl.innerHTML = "";
+  state.breweriesData = [];
 
-    state.breweriesListEl.innerHTML = "";
+  state.breweriesHeadingEl.innerText = getBreweriesHeading();
 
-    state.breweriesHeadingEl.innerText = getBreweriesHeading()
+  if (state.state === "") {
+    setStatus(IDLE);
+    state.breweriesListEl.innerHTML =
+      '<p class="no-state-selected">No state selected</p>';
+    return;
+  }
 
-    if ( state.state === "" ) {
-        state.breweriesListEl.innerHTML = '<p class="no-state-selected">No state selected</p>'
-        return
-    }
+  // We have an actual state that we need to fetch data for
 
-    // We have an actual state that we need to fetch data for
+  const url = getUrl();
 
-    const url = getUrl()
+  setStatus(FETCHING);
 
-    fetch(url)
-    .then( resp => resp.json())
-    .then( data => {
-      setBreweryData(data)
-    //   console.log(data)
-      render()
-    })
+  // Fake an extra delay to see the Status update!
+
+  setTimeout(
+    () =>
+      fetch(url)
+        .then((resp) => resp.json())
+        .then((data) => {
+          setBreweryData(data);
+          render();
+        })
+        .catch((err) => {
+          setStatus(err);
+        }),
+    500 + Math.floor(Math.random() * 500)
+  );
 }
 
 // ========================================================
 
 // Initialise the app
 
-initialise()
+initialise();
