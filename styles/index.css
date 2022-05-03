@@ -67,11 +67,13 @@ main {
 }
 
 .filter-by-city-heading {
+  margin-top: 2px;
   padding: 1rem 1rem 0;
 
   display: grid;
   grid-template-columns: 1fr auto;
 
+  border-radius: 0.25rem 0.25rem 0 0;
   border: 1px solid #000;
   border-bottom: none;
 }
@@ -128,11 +130,11 @@ main {
 }
 
 .status-done {
-  background-color: lightgreen;
+  background-color: rgb(212, 240, 212);
 }
 
 .status-no-data {
-  background-color: lightpink;
+  background-color: rgb(249, 214, 219);
 }
 
 h1 {

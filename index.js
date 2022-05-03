@@ -7,6 +7,7 @@ const tourBreweryTypes = ["micro", "brewpub", "regional"];
 const INITIALISING = "INITIALISING...";
 const IDLE = "IDLE";
 const FETCHING = "FETCHING...";
+const RECEIVING = "RECEIVING ...";
 const DONE = "DONE";
 const NO_DATA = "NO_DATA";
 const FETCH_ERROR = "FETCH_ERROR";
@@ -148,7 +149,7 @@ function setStatus(status) {
   renderStatus();
 }
 
-function setBreweryCities() {
+function extractBreweryCities() {
   state.breweryCities = {};
 
   state.breweriesData.forEach((b) => {
@@ -169,7 +170,7 @@ function setBreweryData(rawData) {
 
   state.breweriesData = breweriesWithTours;
 
-  setBreweryCities();
+  extractBreweryCities();
 }
 
 // ========================================================
@@ -201,7 +202,17 @@ function getBreweriesHeading() {
   return breweriesHeading;
 }
 
-function fetchAndRender() {
+function waitFor(ms) {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve("done");
+    }, ms);
+  });
+}
+
+// This function is async because it uses await to fake an API response delay
+
+async function fetchAndRender() {
   state.breweriesListEl.innerHTML = "";
   state.breweriesData = [];
 
@@ -214,27 +225,34 @@ function fetchAndRender() {
     return;
   }
 
-  // We have an actual state that we need to fetch data for
+  // We have an actual 'US state' that we need to fetch data for
 
   const url = getUrl();
 
   setStatus(FETCHING);
 
   // Fake an extra delay to see the Status update!
+  const fakeFetchDelay = 500 + Math.floor(Math.random() * 500);
+  const fakeReceiveDelay = 300;
 
-  setTimeout(
-    () =>
-      fetch(url)
-        .then((resp) => resp.json())
-        .then((data) => {
-          setBreweryData(data);
-          render();
-        })
-        .catch((err) => {
-          setStatus(err);
-        }),
-    500 + Math.floor(Math.random() * 500)
-  );
+  await waitFor(fakeFetchDelay);
+
+  // Delay fetch by fake delay - to simulate a slow to respond API
+  fetch(url)
+    .then(async (resp) => {
+      setStatus(RECEIVING);
+      await waitFor(fakeReceiveDelay);
+      return resp.json();
+    })
+    .then((data) => {
+      setBreweryData(data);
+      // We now have the data to successfully call render()
+      render();
+    })
+    .catch((err) => {
+      // Sets the error status
+      setStatus(err);
+    });
 }
 
 // ========================================================
