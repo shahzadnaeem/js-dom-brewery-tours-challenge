@@ -16,8 +16,11 @@ const state = {
   state: "",
   breweriesHeadingEl: "",
   breweriesListEl: "",
+  citiesListEl: "",
   breweriesData: [],
-  breweryCities: {},
+  breweryCities: [],
+  citiesSelected: 0,
+  breweriesDisplayed: 0,
   filters: {
     breweryType: "",
     cities: [],
@@ -57,6 +60,7 @@ function initialiseFilterByTypeListener() {
 function initialise() {
   state.breweriesHeadingEl = document.querySelector("#breweries-heading");
   state.breweriesListEl = document.querySelector("#breweries-list");
+  state.citiesListEl = document.querySelector("#filter-by-city-form");
   state.statusDivEl = document.querySelector("#status");
 
   setStatus(INITIALISING);
@@ -65,6 +69,20 @@ function initialise() {
   initialiseFilterByTypeListener();
 
   fetchAndRender();
+}
+
+// ========================================================
+
+// Filtering (by city)
+
+function filterByCity(city, include) {
+  console.log(city, include);
+
+  if (include) {
+    state.filters.cities.push(city);
+  } else {
+    state.filters.cities = state.filters.cities.filter((c) => c !== city);
+  }
 }
 
 // ========================================================
@@ -87,8 +105,24 @@ function renderStatus() {
   }
 }
 
+function shouldRenderByCity(brewery) {
+  if (state.filters.cities.length === 0) {
+    return true;
+  }
+
+  return state.filters.cities.includes(brewery.city);
+}
+
 function renderBreweries() {
-  state.breweriesData.forEach((brewery) => renderBrewery(brewery));
+  state.breweriesListEl.innerHTML = "";
+  state.breweriesDisplayed = 0;
+
+  state.breweriesData.forEach((brewery) => {
+    if (shouldRenderByCity(brewery)) {
+      renderBrewery(brewery);
+      state.breweriesDisplayed++;
+    }
+  });
 }
 
 function renderPhoneNumber(phoneNumber) {
@@ -118,9 +152,35 @@ function renderBrewery(brewery) {
   state.breweriesListEl.appendChild(li);
 }
 
+function renderCities() {
+  state.citiesListEl.innerHTML = "";
+
+  state.breweryCities.forEach((city) => renderCity(city));
+}
+
+function renderCity(city) {
+  const label = document.createElement("label");
+  const checkbox = document.createElement("input");
+
+  label.setAttribute("for", city);
+  label.innerText = city;
+
+  checkbox.checked = state.filters.cities.includes(city);
+  checkbox.setAttribute("type", "checkbox");
+  checkbox.setAttribute("name", city);
+  checkbox.setAttribute("value", city);
+  checkbox.addEventListener("change", (ev) => {
+    filterByCity(city, checkbox.checked);
+    render();
+  });
+
+  state.citiesListEl.append(checkbox, label);
+}
+
 function render() {
   renderStatus();
   renderBreweries();
+  renderCities();
 
   if (state.breweriesData.length === 0) {
     setStatus(NO_DATA);
@@ -140,7 +200,13 @@ function setStatus(status) {
     let statusString = status;
 
     if (numBreweries) {
-      statusString += `  [${numBreweries} breweries, ${state.breweryCities.length} cities]`;
+      if (state.filters.cities.length === 0) {
+        state.citiesSelected = state.breweryCities.length;
+      } else {
+        state.citiesSelected = state.filters.cities.length;
+      }
+
+      statusString += `  [${state.breweriesDisplayed} breweries, ${state.citiesSelected} cities]`;
     }
 
     state.status = statusString;
@@ -150,13 +216,13 @@ function setStatus(status) {
 }
 
 function extractBreweryCities() {
-  state.breweryCities = {};
+  cities = {};
 
   state.breweriesData.forEach((b) => {
-    state.breweryCities[b.city] = true;
+    cities[b.city] = true;
   });
 
-  state.breweryCities = Object.keys(state.breweryCities).sort();
+  state.breweryCities = Object.keys(cities).sort();
 
   console.log(state.breweryCities);
 }
@@ -210,11 +276,22 @@ function waitFor(ms) {
   });
 }
 
+function clearStateForNewFetch() {
+  state.breweriesListEl.innerHTML = "";
+  state.breweriesData = [];
+  state.citiesListEl.innerHTML = "";
+
+  state.citiesSelected = 0;
+  state.breweriesDisplayed = 0;
+
+  state.filters.cities = [];
+  state.breweriesData = [];
+}
+
 // This function is async because it uses await to fake an API response delay
 
 async function fetchAndRender() {
-  state.breweriesListEl.innerHTML = "";
-  state.breweriesData = [];
+  clearStateForNewFetch();
 
   state.breweriesHeadingEl.innerText = getBreweriesHeading();
 
